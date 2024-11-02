@@ -15,46 +15,54 @@ class data_cleaning:
     def format_data(self, index='SPX'):
         # ignore SettingWithCopyWarning:
         pd.options.mode.chained_assignment = None
-        
+
         # drop na rows
         self.option_data = self.option_data.dropna()
-        
+
         # ticker breakdown for call
-        self.option_data[['Index', 'Expiry', 'strike']] = self.option_data['Ticker'].str.split(' ', expand=True)
+        self.option_data[['Index', 'Expiry', 'strike']
+                         ] = self.option_data['Ticker'].str.split(' ', expand=True)
         self.option_data['Type'] = self.option_data['strike'].str[0]
         self.option_data.drop(['strike'], axis=1, inplace=True)
 
         # ticker breakdown for put
-        self.option_data[['Index.1', 'Expiry.1', 'strike']] = self.option_data['Ticker.1'].str.split(' ', expand=True)
+        self.option_data[['Index.1', 'Expiry.1', 'strike']
+                         ] = self.option_data['Ticker.1'].str.split(' ', expand=True)
         self.option_data['Type.1'] = self.option_data['strike'].str[0]
         self.option_data.drop(['strike'], axis=1, inplace=True)
 
         # spit call and put data
-        call_data = self.option_data[self.option_data.columns[~self.option_data.columns.str.contains('.1')]]
-        put_data = self.option_data[self.option_data.columns[self.option_data.columns.str.contains('.1')]]
+        call_data = self.option_data[self.option_data.columns[~self.option_data.columns.str.contains(
+            '.1')]]
+        put_data = self.option_data[self.option_data.columns[self.option_data.columns.str.contains(
+            '.1')]]
         put_data.columns = call_data.columns
-        call_data = call_data[['Ticker', 'Index', 'Type', 'Expiry', 'Strike', 'Bid', 'Ask', 'Last', 'Volm', 'IVM']]
-        put_data = put_data[['Ticker', 'Index', 'Type', 'Expiry', 'Strike', 'Bid', 'Ask', 'Last', 'Volm', 'IVM']]
+        call_data = call_data[['Ticker', 'Index', 'Type',
+                               'Expiry', 'Strike', 'Bid', 'Ask', 'Last', 'Volm', 'IVM']]
+        put_data = put_data[['Ticker', 'Index', 'Type', 'Expiry',
+                             'Strike', 'Bid', 'Ask', 'Last', 'Volm', 'IVM']]
 
-        # redefine option data as call concat put, convert strike to integer, convert expiry to string format, sort data by expiray and strike, delete 0 volume rows 
+        # redefine option data as call concat put, convert strike to integer, convert expiry to string format, sort data by expiray and strike, delete 0 volume rows
         self.option_data = pd.concat([call_data, put_data], axis=0)
         self.option_data['Strike'] = self.option_data['Strike'].astype(int)
-        self.option_data['Expiry'] = pd.to_datetime(self.option_data['Expiry'], format='%m/%d/%y')
+        self.option_data['Expiry'] = pd.to_datetime(
+            self.option_data['Expiry'], format='%m/%d/%y')
         self.option_data['Expiry'] = self.option_data['Expiry'].dt.date
-        self.option_data = self.option_data.sort_values(by=['Type', 'Expiry', 'Index', 'Strike'])
+        self.option_data = self.option_data.sort_values(
+            by=['Type', 'Expiry', 'Index', 'Strike'])
         self.option_data['Expiry'] = self.option_data['Expiry'].astype(str)
         # print(f'Before data cleaning, the number of rows is {len(self.option_data)}')
         # if bid price = ask price, then delete the row
-        self.option_data = self.option_data[self.option_data['Bid'] != self.option_data['Ask']]
+        self.option_data = self.option_data[self.option_data['Bid']
+                                            != self.option_data['Ask']]
         self.option_data = self.option_data[self.option_data['Volm'] != 0]
-        
+
         # if the bid or ask price lower or greater than 10% of the last price, delete the row
         # self.option_data = self.option_data[(self.option_data['Bid'] > self.option_data['Last'] * 0.9)]
         # self.option_data = self.option_data[(self.option_data['Ask'] < self.option_data['Last'] * 1.1)]
         # print(f'After data cleaning, the number of rows is {len(self.option_data)}')
         # self.option_data = self.option_data[abs(self.option_data['Bid'] - self.option_data['Last']) < 200]
         # self.option_data = self.option_data[abs(self.option_data['Ask'] - self.option_data['Last']) < 200]
-        
 
         # For spx option, only use SPX data
         if index == 'SPX':
@@ -70,7 +78,6 @@ class data_cleaning:
         self.option_data = self.option_data.reset_index(drop=True)
 
         return self.option_data
-
 
     def check_iv_number(self, drop_type=None, drop_threshold=-1):
         # keep expiry with enough implied volatility data
@@ -92,12 +99,15 @@ class data_cleaning:
                 expiry_keep.append(expiry)
 
         # keep the expiry with enough implied volatility data
-        self.option_data = self.option_data[self.option_data['Expiry'].isin(expiry_keep)]
+        self.option_data = self.option_data[self.option_data['Expiry'].isin(
+            expiry_keep)]
 
         return self.option_data
-    
 
     def get_hist(self, index, start, end):
+        """ 
+        TODO should be data collection but not data cleaning
+        """
         # check if the file exists
         if not os.path.exists(f'./Public/Data/Index/{index}_hist_{start}_{end}.csv'):
             if index == 'SPX':
@@ -112,26 +122,27 @@ class data_cleaning:
             hist['Date'] = pd.to_datetime(hist['Date'], format='%Y-%m-%d')
             hist['Date'] = hist['Date'].dt.date
             hist['Date'] = hist['Date'].astype(str)
-            hist = hist.rename(columns={'Close':index})
+            hist = hist.rename(columns={'Close': index})
             hist = hist.set_index('Date')
             index = index.lower()
             hist.to_csv(f'./Public/Data/Index/{index}_hist_{start}_{end}.csv')
         else:
-            hist = pd.read_csv(f'./Public/Data/Index/{index}_hist_{start}_{end}.csv')
+            hist = pd.read_csv(
+                f'./Public/Data/Index/{index}_hist_{start}_{end}.csv')
             hist = hist.set_index('Date')
-        
+
         return hist
-    
-    
+
     def extract_option_price(self, px_type='mid'):
         # ignore warning
         warnings.simplefilter(action='ignore', category=FutureWarning)
 
         # store call price and put price with same strike and expiry in the same row of a dataframe
-        option_price = pd.DataFrame(columns=['Index', 'Strike', 'Expiry', 'c', 'p'])
+        option_price = pd.DataFrame(
+            columns=['Index', 'Strike', 'Expiry', 'c', 'p'])
         expiry_list = self.option_data['Expiry'].unique()
         index = self.option_data['Index'].unique()
-        
+
         for expiry in expiry_list:
             # for each expiry
             option_data_expiry = self.option_data[self.option_data['Expiry'] == expiry]
@@ -140,48 +151,51 @@ class data_cleaning:
             for strike in option_strike:
                 # for each strike
                 option_data_strike = option_data_expiry[option_data_expiry['Strike'] == strike]
-                
+
                 # if call and put price exist, store the price in the dataframe
                 if px_type == 'mid':
                     # put price and call price are the mid price of bid and ask
-                    call_price = option_data_strike[option_data_strike['Type'] == 'C'][['Bid', 'Ask']].mean(axis=1)
-                    put_price = option_data_strike[option_data_strike['Type'] == 'P'][['Bid', 'Ask']].mean(axis=1)
+                    call_price = option_data_strike[option_data_strike['Type'] == 'C'][[
+                        'Bid', 'Ask']].mean(axis=1)
+                    put_price = option_data_strike[option_data_strike['Type'] == 'P'][[
+                        'Bid', 'Ask']].mean(axis=1)
                 elif px_type == 'bid':
                     call_price = option_data_strike[option_data_strike['Type'] == 'C']['Bid']
-                    put_price = option_data_strike[option_data_strike['Type'] == 'P']['Bid']
+                    put_price = option_data_strike[option_data_strike['Type']
+                                                   == 'P']['Bid']
                 elif px_type == 'ask':
                     call_price = option_data_strike[option_data_strike['Type'] == 'C']['Ask']
-                    put_price = option_data_strike[option_data_strike['Type'] == 'P']['Ask']
+                    put_price = option_data_strike[option_data_strike['Type']
+                                                   == 'P']['Ask']
                 elif px_type == 'last':
-                    call_price = option_data_strike[option_data_strike['Type'] == 'C']['Last']
-                    put_price = option_data_strike[option_data_strike['Type'] == 'P']['Last']
+                    call_price = option_data_strike[option_data_strike['Type']
+                                                    == 'C']['Last']
+                    put_price = option_data_strike[option_data_strike['Type']
+                                                   == 'P']['Last']
 
                 if not call_price.empty:
                     call_price = call_price.values[0]
                 if not put_price.empty:
                     put_price = put_price.values[0]
 
-                temp_price = pd.DataFrame({'Index': index, 'Strike': strike, 'Expiry': expiry, 'c': call_price, 'p': put_price}, index=[0])
+                temp_price = pd.DataFrame(
+                    {'Index': index, 'Strike': strike, 'Expiry': expiry, 'c': call_price, 'p': put_price}, index=[0])
                 option_price = pd.concat([option_price, temp_price], axis=0)
-        
+
         # set index as number
         option_price = option_price.reset_index(drop=True)
 
         return option_price
-    
-    
 
 
-    
-    
 # -------------------------- test code --------------------------
 if __name__ == '__main__':
     option_data_spx = pd.read_csv('./Public/Data/Option/spx_option_0901.csv')
     option_data_nky = pd.read_csv('./Public/Data/Option/nky_option_0901.csv')
     option_data_hsi = pd.read_csv('./Public/Data/Option/hsi_option_0901.csv')
-    option_data_spx = data_cleaning(option_data_spx).format_data(index = 'SPX')
-    option_data_nky = data_cleaning(option_data_nky).format_data(index = 'NKY')
-    option_data_hsi = data_cleaning(option_data_hsi).format_data(index = 'HSI')
+    option_data_spx = data_cleaning(option_data_spx).format_data(index='SPX')
+    option_data_nky = data_cleaning(option_data_nky).format_data(index='NKY')
+    option_data_hsi = data_cleaning(option_data_hsi).format_data(index='HSI')
     # option_data_spxw = data_cleaning(raw_data_spx).format_data(index = 'SPXW')
 
     option_data_spx = data_cleaning(option_data_spx).check_iv_number()
@@ -189,17 +203,22 @@ if __name__ == '__main__':
     option_data_hsi = data_cleaning(option_data_hsi).check_iv_number()
     # option_data_spxw = data_cleaning(option_data_spxw).check_iv_number()
 
-    spx_data = data_cleaning(option_data_spx).get_hist('SPX', '2021-09-01', '2023-11-13')
-    nky_data = data_cleaning(option_data_nky).get_hist('NKY', '2021-09-01', '2023-11-13')
-    hsi_data = data_cleaning(option_data_hsi).get_hist('HSI', '2021-09-01', '2023-11-13')
+    spx_data = data_cleaning(option_data_spx).get_hist(
+        'SPX', '2021-09-01', '2023-11-13')
+    nky_data = data_cleaning(option_data_nky).get_hist(
+        'NKY', '2021-09-01', '2023-11-13')
+    hsi_data = data_cleaning(option_data_hsi).get_hist(
+        'HSI', '2021-09-01', '2023-11-13')
 
     option_price_spx = data_cleaning(option_data_spx).extract_option_price()
     option_price_nky = data_cleaning(option_data_nky).extract_option_price()
     option_price_hsi = data_cleaning(option_data_hsi).extract_option_price()
 
     # concat three index
-    option_data = pd.concat([option_data_spx, option_data_nky, option_data_hsi], axis=0)
-    option_price = pd.concat([option_price_spx, option_price_nky, option_price_hsi], axis=0)
+    option_data = pd.concat(
+        [option_data_spx, option_data_nky, option_data_hsi], axis=0)
+    option_price = pd.concat(
+        [option_price_spx, option_price_nky, option_price_hsi], axis=0)
 
     display(option_data.head())
     display(option_price.head())
